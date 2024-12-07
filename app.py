@@ -48,15 +48,15 @@ def record_audio_chunk(audio, stream, chunk_length=DEFAULT_CHUNK_LENGTH):
     
 
 def transcribe_audio(model, file_path):
-    segments, info = model.transcribe(file_path, beam_size=7)
+    segments, info = model.transcribe(file_path, beam_size=7, language="ar")  # Specify Arabic language
     transcription = ' '.join(segment.text for segment in segments)
     return transcription
 
 
 def main():
     
-    model_size = DEFAULT_MODEL_SIZE + ".en"
-    model = WhisperModel(model_size, device="cuda", compute_type="float16", num_workers=10)
+    model_size = DEFAULT_MODEL_SIZE  # Use the supported model size
+    model = WhisperModel(model_size, device="cpu", compute_type="float32", num_workers=10)
     
     audio = pyaudio.PyAudio()
     stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024)
@@ -81,7 +81,7 @@ def main():
                 output = ai_assistant.interact_with_llm(transcription)
                 if output:
                     output = output.lstrip()
-                    vs.play_text_to_speech(output)
+                    vs.play_text_to_speech(output, language='ar')  # Ensure TTS uses Arabic
                     print("AI Assistant:{}".format(output))
 
 

@@ -1,0 +1,60 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant</title>
+</head>
+<body>
+    <h1>Voice Assistant</h1>
+    <button id="recordButton">Record</button>
+    <p id="transcription"></p>
+    <p id="response"></p>
+
+    <script>
+        const recordButton = document.getElementById('recordButton');
+        const transcriptionElement = document.getElementById('transcription');
+        const responseElement = document.getElementById('response');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        recordButton.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                recordButton.textContent = 'Record';
+            } else {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorder.start();
+                        recordButton.textContent = 'Stop';
+
+                        mediaRecorder.ondataavailable = event => {
+                            audioChunks.push(event.data);
+                        };
+
+                        mediaRecorder.onstop = () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                            const formData = new FormData();
+                            formData.append('audio', audioBlob, 'temp_audio_chunk.wav');
+
+                            fetch('/process_audio', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                transcriptionElement.textContent = `Transcription: ${data.transcription}`;
+                                responseElement.textContent = `Response: ${data.response}`;
+                            });
+
+                            audioChunks = [];
+                        };
+                    });
+            }
+        });
+    </script>
+</body>
+</html>
