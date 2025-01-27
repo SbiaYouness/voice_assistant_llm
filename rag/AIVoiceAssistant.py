@@ -13,7 +13,7 @@ class AIVoiceAssistant:
     def __init__(self):
         self._qdrant_url = "http://localhost:6333"
         self._client = QdrantClient(url=self._qdrant_url, prefer_grpc=False)
-        self._llm = Ollama(model="darijaLITE", request_timeout=120.0)  # Ensure this model supports Darija
+        self._llm = Ollama(model="darijaLITE", request_timeout=120.0) 
         self._service_context = ServiceContext.from_defaults(llm=self._llm, embed_model="local")
         self._index = None
         self._create_kb()

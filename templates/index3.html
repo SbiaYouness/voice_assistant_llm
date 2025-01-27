@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ar-MA">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مساعد صوتي بالدارجة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>مساعد صوتي بالدارجة 🎤</h1>
+        </header>
+
+        <div class="chat-container" id="chatContainer"></div>
+
+        <div class="controls">
+            <button id="recordButton">سجل صوتك</button>
+            <div class="text-input-container">
+                <input type="text" id="textInput" placeholder="كتب سؤالك هنا...">
+                <button id="sendText">صيفط</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">جاري المعالجة...</div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const recordButton = document.getElementById('recordButton');
+        const chatContainer = document.getElementById('chatContainer');
+        const loading = document.getElementById('loading');
+        const textInput = document.getElementById('textInput');
+        const sendText = document.getElementById('sendText');
+
+        // Initialize audio recording
+        async function initializeRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 44100,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                // Add audio context for level monitoring
+                const audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                source.connect(analyser);
+
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 128000
+                });
+
+                // Audio level monitoring
+                function checkAudioLevel() {
+                    if (isRecording) {
+                        const array = new Uint8Array(analyser.frequencyBinCount);
+                        analyser.getByteFrequencyData(array);
+                        const average = array.reduce((a, b) => a + b) / array.length;
+                        
+                        if (average < 10) {
+                            console.warn('Low audio level detected:', average);
+                            recordButton.style.borderColor = '#yellow';
+                        } else {
+                            recordButton.style.borderColor = '#green';
+                        }
+                        
+                        requestAnimationFrame(checkAudioLevel);
+                    }
+                }
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        console.log('Audio chunk size:', event.data.size);
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    if (audioChunks.length === 0) {
+                        console.error('No audio data recorded');
+                        return;
+                    }
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+                    console.log('Final audio size:', audioBlob.size);
+                    
+                    // Preview recorded audio locally
+                    const audioURL = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioURL);
+                    audio.play();
+                    
+                    await processAudio(audioBlob);
+                };
+
+                // Start level monitoring when recording
+                recordButton.addEventListener('click', () => {
+                    if (!isRecording) {
+                        checkAudioLevel();
+                    }
+                });
+
+            } catch (err) {
+                console.error('Microphone error:', err);
+                alert('مشكل في الميكروفون');
+            }
+        }
+
+        // Update the recording button handler
+        recordButton.addEventListener('click', () => {
+            if (!isRecording) {
+                audioChunks = [];
+                mediaRecorder.start(100); // Collect data every 100ms
+                isRecording = true;
+                recordButton.textContent = '⏺ جاري التسجيل...';
+                recordButton.style.background = '#e74c3c';
+                console.log('Recording started');
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordButton.textContent = 'سجل صوتك';
+                recordButton.style.background = '';
+                recordButton.style.borderColor = '';
+                console.log('Recording stopped');
+            }
+        });
+
+        async function processAudio(audioBlob) {
+            loading.style.display = 'block';
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            console.log('Sending blob size:', audioBlob.size);
+
+            try {
+                const response = await fetch('/process_audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Server response:', data);
+
+                if (data.transcription) {
+                    addMessage(data.transcription, 'user');
+                    addMessage(data.response, 'bot');
+                    
+                    if (data.audio_file) {
+                        const audio = new Audio(`/audio/${data.audio_file}`);
+                        audio.onerror = (e) => console.error('Audio playback error:', e);
+                        await audio.play();
+                    }
+                }
+            } catch (error) {
+                console.error('Processing error:', error);
+                addMessage('Error: ' + error.message, 'system');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Handle text input
+        sendText.addEventListener('click', async () => {
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            loading.style.display = 'block';
+            addMessage(text, 'user');
+            textInput.value = '';
+
+            try {
+                const response = await fetch('/process_text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text })
+                });
+                const data = await response.json();
+                addMessage(data.response, 'bot');
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('عندي مشكل. عاود من بعد.', 'bot');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Add message to chat
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', `${sender}-message`);
+            messageDiv.textContent = text;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Initialize
+        initializeRecording();
+    </script>
+</body>
+</html>

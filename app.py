@@ -4,6 +4,7 @@ import pyaudio
 import numpy as np
 from scipy.io import wavfile
 from faster_whisper import WhisperModel
+from bidi.algorithm import get_display
 
 import voice_service as vs
 from rag.AIVoiceAssistant import AIVoiceAssistant
@@ -48,15 +49,14 @@ def record_audio_chunk(audio, stream, chunk_length=DEFAULT_CHUNK_LENGTH):
     
 
 def transcribe_audio(model, file_path):
-    segments, info = model.transcribe(file_path, beam_size=7, language="ar")  # Specify Arabic language
+    segments, info = model.transcribe(file_path, beam_size=7)
     transcription = ' '.join(segment.text for segment in segments)
     return transcription
 
-
 def main():
-    
-    model_size = DEFAULT_MODEL_SIZE  # Use the supported model size
-    model = WhisperModel(model_size, device="cpu", compute_type="float32", num_workers=10)
+    # Change model to support Arabic and use CPU
+    model_size = DEFAULT_MODEL_SIZE  # Remove ".en" to support multiple languages
+    model = WhisperModel(model_size, device="cpu", compute_type="int8", num_workers=2)
     
     audio = pyaudio.PyAudio()
     stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024)
@@ -72,7 +72,8 @@ def main():
                 # Transcribe audio
                 transcription = transcribe_audio(model, chunk_file)
                 os.remove(chunk_file)
-                print("Customer:{}".format(transcription))
+                # Use get_display for proper Arabic text rendering
+                print("Customer:{}".format(get_display(transcription)))
                 
                 # Add customer input to transcript
                 customer_input_transcription += "Customer: " + transcription + "\n"
@@ -81,9 +82,9 @@ def main():
                 output = ai_assistant.interact_with_llm(transcription)
                 if output:
                     output = output.lstrip()
-                    vs.play_text_to_speech(output, language='ar')  # Ensure TTS uses Arabic
-                    print("AI Assistant:{}".format(output))
-
+                    vs.play_text_to_speech(output)
+                    # Use get_display for proper Arabic text rendering
+                    print("AI Assistant:{}".format(get_display(output)))
 
     
     except KeyboardInterrupt:
