@@ -184,6 +184,20 @@ header.active h1 {
     animation: wave 1.5s linear infinite;
 }
 
+.recording-status {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--text-color);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.recording-status.active {
+    opacity: 1;
+}
+
 @keyframes pulse {
     0% { transform: scale(1); }
     50% { transform: scale(1.05); }
@@ -250,6 +264,28 @@ button:hover {
     color: var(--title-color);
     font-size: 14px;
     margin-top: 10px;
+}
+
+.error-message {
+    animation: fadeOutSlide 3s forwards;
+    color: #ff4444;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+@keyframes fadeOutSlide {
+    0% { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+    80% { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% { 
+        opacity: 0;
+        transform: translateY(-10px);
+    }
 }
 
 ::-webkit-scrollbar {

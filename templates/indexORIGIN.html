@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Vocal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #transcription, #response {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #audioPlayer {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Assistant Vocal</h1>
+
+    <h2>Envoyer un fichier audio</h2>
+    <input type="file" id="audioInput" accept="audio/*">
+    <button onclick="sendAudio()">Envoyer Audio</button>
+
+    <h3>Transcription:</h3>
+    <p id="transcription">Aucune transcription encore...</p>
+
+    <h3>Réponse de l'Assistant IA:</h3>
+    <p id="response">Aucune réponse encore...</p>
+
+    <h3>Lecture de l'audio:</h3>
+    <audio id="audioPlayer" controls></audio>
+
+    <script>
+        async function sendAudio() {
+            const fileInput = document.getElementById('audioInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Veuillez choisir un fichier audio.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', file);
+
+            try {
+                const response = await fetch('http://localhost:5000/process_audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // Display transcription and response text
+                document.getElementById('transcription').innerText = data.transcription || 'Erreur de transcription.';
+                document.getElementById('response').innerText = data.response || 'Erreur de réponse.';
+
+                // Play the audio response if available
+                if (data.audio_file) {
+                    const audio = new Audio('http://localhost:5000/audio/' + data.audio_file);
+                    audio.play();
+                    // Optionally update the player element
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    audioPlayer.src = 'http://localhost:5000/audio/' + data.audio_file;
+                    audioPlayer.play();
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erreur lors de la requête.');
+            }
+        }
+    </script>
+
+</body>
+</html>

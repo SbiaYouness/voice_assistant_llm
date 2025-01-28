@@ -1,79 +1,52 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="ar-MA">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assistant Vocal</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        #transcription, #response {
-            margin-top: 20px;
-            font-weight: bold;
-        }
-        #audioPlayer {
-            margin-top: 20px;
-        }
-    </style>
-</head>
+    <title>مساعد صوتي بالدارجة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
 <body>
+    <div class="container">
+        <header>
+            <h1>مساعد صوتي بالدارجة</h1>
+        </header>
 
-    <h1>Assistant Vocal</h1>
+        <div class="chat-container" id="chatContainer"></div>
 
-    <h2>Envoyer un fichier audio</h2>
-    <input type="file" id="audioInput" accept="audio/*">
-    <button onclick="sendAudio()">Envoyer Audio</button>
+        <div class="controls">
+            <div class="record-container">
+                <div id="audioVisualizer" class="audio-visualizer">
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                </div>
+                
+                <button id="recordButton">    
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+                    </svg>
+                </button>
+                <div id="recordingStatus" class="recording-status">جاري التسجيل...</div>
+            </div>
 
-    <h3>Transcription:</h3>
-    <p id="transcription">Aucune transcription encore...</p>
+            <div class="text-input-container">
+                <input type="text" id="textInput" placeholder="كتب سؤالك هنا...">
+                <button id="sendText">صيفط</button>
+            </div>
+        </div>
 
-    <h3>Réponse de l'Assistant IA:</h3>
-    <p id="response">Aucune réponse encore...</p>
+        <div class="loading" id="loading">جاري المعالجة...</div>
+    </div>
+    <script type="module">
+        import ErrorHandler from "{{ url_for('static', filename='js/errorHandler.js') }}";
+        import AudioHandler from "{{ url_for('static', filename='js/audioHandler.js') }}";
+        import Visualizer from "{{ url_for('static', filename='js/visualizer.js') }}";
+        import ChatInterface from "{{ url_for('static', filename='js/chatInterface.js') }}";
+        import initApp from "{{ url_for('static', filename='js/app.js') }}";
 
-    <h3>Lecture de l'audio:</h3>
-    <audio id="audioPlayer" controls></audio>
-
-    <script>
-        async function sendAudio() {
-            const fileInput = document.getElementById('audioInput');
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Veuillez choisir un fichier audio.');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('audio', file);
-
-            try {
-                const response = await fetch('http://localhost:5000/process_audio', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                // Display transcription and response text
-                document.getElementById('transcription').innerText = data.transcription || 'Erreur de transcription.';
-                document.getElementById('response').innerText = data.response || 'Erreur de réponse.';
-
-                // Play the audio response if available
-                if (data.audio_file) {
-                    const audio = new Audio('http://localhost:5000/audio/' + data.audio_file);
-                    audio.play();
-                    // Optionally update the player element
-                    const audioPlayer = document.getElementById('audioPlayer');
-                    audioPlayer.src = 'http://localhost:5000/audio/' + data.audio_file;
-                    audioPlayer.play();
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Erreur lors de la requête.');
-            }
-        }
+        initApp(ErrorHandler, AudioHandler, Visualizer, ChatInterface);
     </script>
-
 </body>
 </html>

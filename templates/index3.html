@@ -4,31 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مساعد صوتي بالدارجة</title>
-    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> -->
-    <link rel="stylesheet" href="../static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>مساعد صوتي بالدارجة 🎤</h1>
+            <h1>مساعد صوتي بالدارجة</h1>
         </header>
 
         <div class="chat-container" id="chatContainer"></div>
 
-        <div id="audioVisualizer" class="audio-visualizer">
-            <div class="audio-bar"></div>
-            <div class="audio-bar"></div>
-            <div class="audio-bar"></div>
-            <div class="audio-bar"></div>
-            <div class="audio-bar"></div>
-        </div>
-
         <div class="controls">
-            <button id="recordButton">    
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
-                </svg>
-            </button>
+            <div class="record-container">
+                <div id="audioVisualizer" class="audio-visualizer">
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                    <div class="audio-bar"></div>
+                </div>
+                
+                <button id="recordButton">    
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+                    </svg>
+                </button>
+                <div id="recordingStatus" class="recording-status">جاري التسجيل...</div>
+            </div>
+
             <div class="text-input-container">
                 <input type="text" id="textInput" placeholder="كتب سؤالك هنا...">
                 <button id="sendText">صيفط</button>
@@ -37,19 +40,20 @@
 
         <div class="loading" id="loading">جاري المعالجة...</div>
     </div>
-
     <script>
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
-
+    
         const recordButton = document.getElementById('recordButton');
         const chatContainer = document.getElementById('chatContainer');
         const loading = document.getElementById('loading');
         const textInput = document.getElementById('textInput');
         const sendText = document.getElementById('sendText');
-
-        // Initialize audio recording
+        const header = document.querySelector('header');
+        const visualizer = document.getElementById('audioVisualizer');
+        const recordingStatus = document.getElementById('recordingStatus');
+    
         async function initializeRecording() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -61,146 +65,112 @@
                         autoGainControl: true
                     }
                 });
-
-                // Add audio context for level monitoring
-                const audioContext = new AudioContext();
-                const source = audioContext.createMediaStreamSource(stream);
-                const analyser = audioContext.createAnalyser();
-                source.connect(analyser);
-
+    
                 mediaRecorder = new MediaRecorder(stream, {
                     mimeType: 'audio/webm;codecs=opus',
                     audioBitsPerSecond: 128000
                 });
-
-                // Audio level monitoring
-                function checkAudioLevel() {
-                    if (isRecording) {
-                        const array = new Uint8Array(analyser.frequencyBinCount);
-                        analyser.getByteFrequencyData(array);
-                        const average = array.reduce((a, b) => a + b) / array.length;
-                        
-                        if (average < 10) {
-                            console.warn('Low audio level detected:', average);
-                            recordButton.style.borderColor = '#yellow';
-                        } else {
-                            recordButton.style.borderColor = '#green';
-                        }
-                        
-                        requestAnimationFrame(checkAudioLevel);
-                    }
-                }
-
+    
                 mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
-                        console.log('Audio chunk size:', event.data.size);
                         audioChunks.push(event.data);
                     }
                 };
-
+    
                 mediaRecorder.onstop = async () => {
-                    if (audioChunks.length === 0) {
-                        console.error('No audio data recorded');
-                        return;
-                    }
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-                    console.log('Final audio size:', audioBlob.size);
-                    
-                    // Preview recorded audio locally
-                    const audioURL = URL.createObjectURL(audioBlob);
-                    const audio = new Audio(audioURL);
-                    audio.play();
-                    
                     await processAudio(audioBlob);
                 };
-
-                // Start level monitoring when recording
-                recordButton.addEventListener('click', () => {
-                    if (!isRecording) {
-                        checkAudioLevel();
-                    }
-                });
-
+    
             } catch (err) {
                 console.error('Microphone error:', err);
-                alert('مشكل في الميكروفون');
+                showError('مشكل في الميكروفون');
             }
         }
-
+    
         recordButton.addEventListener('click', () => {
-    if (!isRecording) {
-        audioChunks = [];
-        mediaRecorder.start(100);
-        isRecording = true;
-        recordButton.classList.add('recording');
-        visualizer.classList.add('active');
-        
-        // Add ripple effect
-        const ripple = document.createElement('div');
-        ripple.classList.add('recording-ripple');
-        recordButton.appendChild(ripple);
-        
-        console.log('Recording started');
-    } else {
-        mediaRecorder.stop();
-        isRecording = false;
-        recordButton.classList.remove('recording');
-        visualizer.classList.remove('active');
-        
-        // Remove ripple effect
-        const ripple = recordButton.querySelector('.recording-ripple');
-        if (ripple) ripple.remove();
-        
-        console.log('Recording stopped');
-    }
-});
-
+            if (!isRecording) {
+                audioChunks = [];
+                mediaRecorder.start(100);
+                isRecording = true;
+                recordButton.classList.add('recording');
+                visualizer.classList.add('active');
+                recordingStatus.classList.add('active');
+                activateChat();
+                startVisualization();
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordButton.classList.remove('recording');
+                visualizer.classList.remove('active');
+                recordingStatus.classList.remove('active');
+                stopVisualization();
+            }
+        });
+    
+        function startVisualization() {
+            const audioContext = new AudioContext();
+            const analyser = audioContext.createAnalyser();
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const source = audioContext.createMediaStreamSource(mediaRecorder.stream);
+            source.connect(analyser);
+            
+            function draw() {
+                if (!isRecording) return;
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                const bars = document.querySelectorAll('.audio-bar');
+                for (let i = 0; i < bars.length; i++) {
+                    const bar = bars[i];
+                    const value = dataArray[i * 10] / 128.0;
+                    const height = value * 40;
+                    bar.style.height = `${height}px`;
+                }
+            }
+            
+            draw();
+        }
+    
+        function stopVisualization() {
+            const bars = document.querySelectorAll('.audio-bar');
+            bars.forEach(bar => bar.style.height = '5px');
+        }
+    
         async function processAudio(audioBlob) {
             loading.style.display = 'block';
             const formData = new FormData();
-            formData.append('audio', audioBlob, 'recording.webm');
-            console.log('Sending blob size:', audioBlob.size);
-
+            formData.append('audio', audioBlob);
+    
             try {
                 const response = await fetch('/process_audio', {
                     method: 'POST',
                     body: formData
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
                 const data = await response.json();
-                console.log('Server response:', data);
-
-                if (data.transcription) {
-                    addMessage(data.transcription, 'user');
-                    addMessage(data.response, 'bot');
-                    
-                    if (data.audio_file) {
-                        const audio = new Audio(`/audio/${data.audio_file}`);
-                        audio.onerror = (e) => console.error('Audio playback error:', e);
-                        await audio.play();
-                    }
-                }
+                
+                addMessage(data.transcription, 'user');
+                addMessage(data.response, 'bot');
+                
+                const audio = new Audio(`/audio/${data.audio_file}`);
+                audio.play();
             } catch (error) {
-                console.error('Processing error:', error);
-                addMessage('Error: ' + error.message, 'system');
+                console.error('Error:', error);
+                showError('عندي مشكل. عاود من بعد.');
             } finally {
                 loading.style.display = 'none';
             }
         }
-
-        // Handle text input
+    
         sendText.addEventListener('click', async () => {
             const text = textInput.value.trim();
             if (!text) return;
-
+    
+            activateChat();
             loading.style.display = 'block';
             addMessage(text, 'user');
             textInput.value = '';
-
+    
             try {
                 const response = await fetch('/process_text', {
                     method: 'POST',
@@ -213,20 +183,26 @@
                 addMessage(data.response, 'bot');
             } catch (error) {
                 console.error('Error:', error);
-                addMessage('عندي مشكل. عاود من بعد.', 'bot');
+                showError('عندي مشكل. عاود من بعد.');
             } finally {
                 loading.style.display = 'none';
             }
         });
-
+    
         textInput.addEventListener('keyup', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
                 sendText.click();
             }
         });
-        
-        // Add message to chat
+    
+        function activateChat() {
+            if (!header.classList.contains('active')) {
+                header.classList.add('active');
+                chatContainer.classList.add('active');
+            }
+        }
+    
         function addMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', `${sender}-message`);
@@ -234,33 +210,19 @@
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
-
-        const visualizer = document.getElementById('audioVisualizer');
-
-        recordButton.addEventListener('click', () => {
-            if (!isRecording) {
-                visualizer.classList.add('active');
-                recordButton.classList.add('recording');
-            } else {
-                visualizer.classList.remove('active');
-                recordButton.classList.remove('recording');
-            }
-        });
-
-        function activateChat() {
-            if (!header.classList.contains('active')) {
-                header.classList.add('active');
-                chatContainer.classList.add('active');
-            }
+    
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.classList.add('message', 'bot-message', 'error-message');
+            errorDiv.textContent = message;
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
         }
-
-        const header = document.querySelector('header');
-
-        // Trigger on first input
-        textInput.addEventListener('focus', activateChat);
-        recordButton.addEventListener('click', activateChat);
-
-        // Initialize
+    
         initializeRecording();
     </script>
 </body>
