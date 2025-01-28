@@ -14,15 +14,14 @@ CORS(app)
 # Initialisation de l'assistant vocal
 ai_assistant = AIVoiceAssistant()
 
-@app.route('/')
+@app.route('/') 
 def index():
     """
-    Route pour la page d'accueil.
+    Route pour la page d'accueil. #commentaire
     """
-    return render_template('index.html')
+    return render_template('index3.html')
 
 
-# Add at the top of file with other imports
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -30,7 +29,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-@app.route('/process_audio', methods=['POST'])
+@app.route('/process_audio', methods=['POST']) 
 def process_audio():
     audio_file = request.files.get('audio')
     if not audio_file:
