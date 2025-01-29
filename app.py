@@ -1,99 +1,83 @@
 import os
-import wave
-import pyaudio
-import numpy as np
-from scipy.io import wavfile
-from faster_whisper import WhisperModel
-from bidi.algorithm import get_display
-
-import voice_service as vs
+import time
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for
+from flask_cors import CORS
 from rag.AIVoiceAssistant import AIVoiceAssistant
+import voice_service as vs  # For text-to-speech
+import audio_service as asr  # For audio transcription
 
-DEFAULT_MODEL_SIZE = "medium"
-DEFAULT_CHUNK_LENGTH = 10
+app = Flask(__name__, static_folder='static')
 
+# Activer CORS pour toutes les routes
+CORS(app)
+
+# Initialisation de l'assistant vocal
 ai_assistant = AIVoiceAssistant()
 
+@app.route('/') 
+def index():
+    """
+    Route pour la page d'accueil. #commentaire
+    """
+    return render_template('index3.html')
 
-def is_silence(data, max_amplitude_threshold=3000):
-    """Check if audio data contains silence."""
-    max_amplitude = np.max(np.abs(data))
-    return max_amplitude <= max_amplitude_threshold
+
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-def record_audio_chunk(audio, stream, chunk_length=DEFAULT_CHUNK_LENGTH):
-    frames = []
-    for _ in range(0, int(16000 / 1024 * chunk_length)):
-        data = stream.read(1024)
-        frames.append(data)
+@app.route('/process_audio', methods=['POST']) 
+def process_audio():
+    audio_file = request.files.get('audio')
+    if not audio_file:
+        return jsonify({"error": "Aucun fichier audio reçu."}), 400
 
-    temp_file_path = 'temp_audio_chunk.wav'
-    with wave.open(temp_file_path, 'wb') as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
-        wf.setframerate(16000)
-        wf.writeframes(b''.join(frames))
+    # Save temp file in uploads folder
+    temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_audio_{int(time.time())}.wav")
+    audio_file.save(temp_path)
 
-    # Check if the recorded chunk contains silence
-    try:
-        samplerate, data = wavfile.read(temp_file_path)
-        if is_silence(data):
-            os.remove(temp_file_path)
-            return True
-        else:
-            return False
-    except Exception as e:
-        print(f"Error while reading audio file: {e}")
-        return False
+    # Transcribe audio
+    transcription = asr.transcribe_audio(temp_path)
+    os.remove(temp_path)
 
-    
+    # Get AI response
+    response = ai_assistant.interact_with_llm(transcription)
 
-def transcribe_audio(model, file_path):
-    segments, info = model.transcribe(file_path, beam_size=7)
-    transcription = ' '.join(segment.text for segment in segments)
-    return transcription
+    # Generate response audio in uploads folder
+    audio_filename = f'response_{int(time.time())}.mp3'
+    audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
+    vs.play_text_to_speech(response, output_path=audio_path)
 
-def main():
-    # Change model to support Arabic and use CPU
-    model_size = DEFAULT_MODEL_SIZE  # Remove ".en" to support multiple languages
-    model = WhisperModel(model_size, device="cpu", compute_type="int8", num_workers=2)
-    
-    audio = pyaudio.PyAudio()
-    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024)
-    customer_input_transcription = ""
+    return jsonify({
+        "transcription": transcription,
+        "response": response,
+        "audio_file": audio_filename
+    })
 
-    try:
-        while True:
-            chunk_file = "temp_audio_chunk.wav"
-            
-            # Record audio chunk
-            print("_")
-            if not record_audio_chunk(audio, stream):
-                # Transcribe audio
-                transcription = transcribe_audio(model, chunk_file)
-                os.remove(chunk_file)
-                # Use get_display for proper Arabic text rendering
-                print("Customer:{}".format(get_display(transcription)))
-                
-                # Add customer input to transcript
-                customer_input_transcription += "Customer: " + transcription + "\n"
-                
-                # Process customer input and get response from AI assistant
-                output = ai_assistant.interact_with_llm(transcription)
-                if output:
-                    output = output.lstrip()
-                    vs.play_text_to_speech(output)
-                    # Use get_display for proper Arabic text rendering
-                    print("AI Assistant:{}".format(get_display(output)))
+@app.route('/audio/<filename>')
+def send_audio(filename):
+    """Serve the generated audio file."""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-    
-    except KeyboardInterrupt:
-        print("\nStopping...")
+@app.route('/process_text', methods=['POST'])
+def process_text():
+    """
+    Route pour traiter les requêtes textuelles.
+    """
+    user_input = request.json.get('text')
+    if not user_input:
+        return jsonify({"error": "Aucune entrée textuelle reçue."}), 400
 
-    finally:
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
+    # Obtenez une réponse de l'IA
+    response = ai_assistant.interact_with_llm(user_input)
 
-if __name__ == "__main__":
-    main()
+    # Réponse sous forme JSON
+    return jsonify({
+        "response": response
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
