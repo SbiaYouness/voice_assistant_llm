@@ -29,7 +29,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-@app.route('/process_audio', methods=['POST']) 
+@app.route('/process_audio', methods=['POST']) #
 def process_audio():
     audio_file = request.files.get('audio')
     if not audio_file:
@@ -41,7 +41,7 @@ def process_audio():
 
     # Transcribe audio
     transcription = asr.transcribe_audio(temp_path)
-    os.remove(temp_path)
+    # os.remove(temp_path)
 
     # Get AI response
     response = ai_assistant.interact_with_llm(transcription)
