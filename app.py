@@ -14,13 +14,13 @@ CORS(app)
 # Initialisation de l'assistant vocal
 ai_assistant = AIVoiceAssistant()
 
+
 @app.route('/') 
 def index():
-    """
+    """ 
     Route pour la page d'accueil. #commentaire
     """
     return render_template('index3.html')
-
 
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
