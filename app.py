@@ -20,7 +20,7 @@ def index():
     """ 
     Route pour la page d'accueil. #commentaire
     """
-    return render_template('index3.html')
+    return render_template('index.html')
 
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -60,7 +60,7 @@ def process_audio():
 @app.route('/audio/<filename>')
 def send_audio(filename):
     """Serve the generated audio file."""
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, mimetype='audio/mpeg')
 
 @app.route('/process_text', methods=['POST'])
 def process_text():

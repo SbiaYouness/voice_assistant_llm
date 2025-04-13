@@ -4,49 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مساعد صوتي بالدارجة</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
 <body>
-    <div class="container">
-        <header>
-            <h1>مساعد صوتي بالدارجة</h1>
-        </header>
-
-        <div class="chat-container" id="chatContainer"></div>
-
-        <div class="controls">
-            <div class="record-container">
-                <div id="audioVisualizer" class="audio-visualizer">
-                    <div class="audio-bar"></div>
-                    <div class="audio-bar"></div>
-                    <div class="audio-bar"></div>
-                    <div class="audio-bar"></div>
-                    <div class="audio-bar"></div>
-                </div>
-                
-                <button id="recordButton">    
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
-                    </svg>
-                </button>
-                <div id="recordingStatus" class="recording-status">جاري التسجيل...</div>
+    <div class="main">
+        <aside class="sidebar">
+            <button class="toggle-sidebar" id="toggleSidebar">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                </svg>
+            </button>
+            <div class="new-chat">
+                <button>+ محادثة جديدة</button>
             </div>
+            <div class="history">
+            </div>
+        </aside>
+        <div class="chat-area">
+            <div class="chat-container" id="chatContainer"></div>
 
-            <div class="text-input-container">
-                <input type="text" id="textInput" placeholder="كتب سؤالك هنا...">
-                <button id="sendText">صيفط</button>
+            <div class="input-area">
+                <div class="input-container">
+                    <div id="audioVisualizer" class="audio-visualizer">
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                        <div class="audio-bar"></div>
+                    </div>
+                    
+                    <input type="text" id="textInput" placeholder="كتب سؤالك هنا...">
+                    
+                    <button id="recordButton" class="action-button">    
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+                        </svg>
+                    </button>
+                    
+                    <button id="sendText" class="action-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="disclaimer">
+                    المساعد قد يخطئ. يرجى التحقق من المعلومات المهمة.
+                </div>
             </div>
         </div>
-
-        <div class="loading" id="loading">جاري المعالجة...</div>
     </div>
-    <script type="module">
-        import ErrorHandler from "{{ url_for('static', filename='js/errorHandler.js') }}";
-        import AudioHandler from "{{ url_for('static', filename='js/audioHandler.js') }}";
-        import Visualizer from "{{ url_for('static', filename='js/visualizer.js') }}";
-        import ChatInterface from "{{ url_for('static', filename='js/chatInterface.js') }}";
-        import initApp from "{{ url_for('static', filename='js/app.js') }}";
-
-        initApp(ErrorHandler, AudioHandler, Visualizer, ChatInterface);
-    </script>
+    <div class="loading" id="loading" style="display: none;">جاري المعالجة...</div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

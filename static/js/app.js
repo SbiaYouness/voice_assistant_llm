@@ -22,6 +22,7 @@ toggleSidebarBtn.addEventListener('click', () => {
     toggleSidebarBtn.classList.toggle('collapsed');
     chatArea.classList.toggle('expanded');
 });
+
 // Add mic handling code
 recordButton.addEventListener('click', async () => {
     if (!mediaRecorder) {
@@ -43,6 +44,7 @@ recordButton.addEventListener('click', async () => {
         recordButton.style.color = '#ff4444';
     }
 });
+
 // Add a new chat
 newChatBtn.addEventListener('click', () => {
     saveChatToStorage();
@@ -73,10 +75,18 @@ function addChatToHistory(chat) {
 }
 
 function saveChatToStorage() {
-    const messages = Array.from(chatContainer.children).map(msg => ({
-        text: msg.textContent,
-        sender: msg.classList.contains('user-message') ? 'user' : 'bot'
-    }));
+    const messages = Array.from(chatContainer.children).map(msg => {
+        // Get the text content without including any audio player text
+        const messageContent = msg.querySelector('.message-text') ? 
+            msg.querySelector('.message-text').textContent : 
+            msg.textContent;
+        
+        return {
+            text: messageContent,
+            sender: msg.classList.contains('user-message') ? 'user' : 'bot',
+            audioFile: msg.hasAttribute('data-audio-file') ? msg.getAttribute('data-audio-file') : null
+        };
+    });
     
     const chatIndex = chats.findIndex(c => c.id === currentChatId);
     if (chatIndex !== -1) {
@@ -94,7 +104,7 @@ function loadChat(chatId) {
         
         // Clear and load messages
         chatContainer.innerHTML = '';
-        chat.messages.forEach(msg => addMessage(msg.text, msg.sender, false));
+        chat.messages.forEach(msg => addMessage(msg.text, msg.sender, false, msg.audioFile));
         
         // Visual feedback for selected chat
         document.querySelectorAll('.history-item').forEach(item => {
@@ -107,10 +117,37 @@ function loadChat(chatId) {
     }
 }
 
-function addMessage(text, sender, save = true) {
+function addAudioPlayerToMessage(audioFile, messageDiv) {
+    // Store the audio file name as a data attribute only
+    messageDiv.setAttribute('data-audio-file', audioFile);
+    
+    // Add a small indicator that audio is available
+    const audioIndicator = document.createElement('span');
+    audioIndicator.className = 'audio-indicator';
+    audioIndicator.innerHTML = '<i class="fas fa-volume-up"></i>';
+    audioIndicator.style.marginLeft = '8px';
+    audioIndicator.style.color = '#4CAF50';
+    audioIndicator.style.fontSize = '0.8em';
+    
+    // Add the indicator to the message
+    messageDiv.querySelector('.message-text').appendChild(audioIndicator);
+}
+
+function addMessage(text, sender, save = true, audioFile = null) {
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message', `${sender}-message`);
-    messageDiv.textContent = text;
+    
+    // Create a container for the text content
+    const textDiv = document.createElement('div');
+    textDiv.classList.add('message-text');
+    textDiv.textContent = text;
+    messageDiv.appendChild(textDiv);
+    
+    // Add audio player if available and the message is from the bot
+    if (audioFile && sender === 'bot') {
+        addAudioPlayerToMessage(audioFile, messageDiv);
+    }
+    
     chatContainer.appendChild(messageDiv);
     chatContainer.scrollTop = chatContainer.scrollHeight;
     
@@ -122,7 +159,7 @@ function addMessage(text, sender, save = true) {
             if (!chats[chatIndex].messages) {
                 chats[chatIndex].messages = [];
             }
-            chats[chatIndex].messages.push({ text, sender });
+            chats[chatIndex].messages.push({ text, sender, audioFile });
             // Save to localStorage
             localStorage.setItem('chats', JSON.stringify(chats));
             
@@ -136,6 +173,7 @@ function addMessage(text, sender, save = true) {
         }
     }
 }
+
 async function initializeRecording() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -163,9 +201,41 @@ async function processAudio(audioBlob) {
     try {
         const response = await fetch('/process_audio', { method: 'POST', body: formData });
         const data = await response.json();
+        
         addMessage(data.transcription, 'user');
-        addMessage(data.response, 'bot');
-    } catch {
+        addMessage(data.response, 'bot', true, data.audio_file);
+        
+        // Play the audio response automatically with better error handling
+        if (data.audio_file) {
+            console.log("Playing audio response:", data.audio_file);
+            const audioPlayer = new Audio(`/audio/${data.audio_file}`);
+            
+            // Set volume to maximum
+            audioPlayer.volume = 1.0;
+            
+            // Force the user's device to use the speakers (not guaranteed to work on all browsers)
+            audioPlayer.setSinkId && audioPlayer.setSinkId('default').catch(e => console.log('Cannot set audio output device'));
+            
+            // Play with better error handling
+            audioPlayer.oncanplaythrough = () => {
+                audioPlayer.play()
+                    .then(() => console.log("Audio playback started"))
+                    .catch(error => {
+                        console.error('Error playing audio:', error);
+                        // Try playing again after a user interaction
+                        document.body.addEventListener('click', function playOnClick() {
+                            audioPlayer.play();
+                            document.body.removeEventListener('click', playOnClick);
+                        }, { once: true });
+                    });
+            };
+            
+            audioPlayer.onerror = (e) => {
+                console.error("Audio element error:", e);
+            };
+        }
+    } catch (error) {
+        console.error('Error processing audio:', error);
         addMessage('عندي مشكل. عاود من بعد.', 'bot');
     } finally {
         loading.style.display = 'none';
@@ -188,6 +258,9 @@ sendText.addEventListener('click', async () => {
         });
         const data = await response.json();
         addMessage(data.response, 'bot');
+    } catch (error) {
+        console.error('Error processing text:', error);
+        addMessage('عندي مشكل. عاود من بعد.', 'bot');
     } finally {
         loading.style.display = 'none';
     }
