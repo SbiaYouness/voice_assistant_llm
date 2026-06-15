@@ -160,3 +160,10 @@ cython_debug/
 #.idea/
 
 chat/
+
+# Runtime audio generated during sessions
+uploads/*
+!uploads/.gitkeep
+
+# Legacy experiments — not part of the shipped project
+old ones/

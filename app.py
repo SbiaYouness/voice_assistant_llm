@@ -1,17 +1,26 @@
 import os
 import time
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for
+from pathlib import Path
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
+
+import audio_service as asr
+import voice_service as vs
 from rag.AIVoiceAssistant import AIVoiceAssistant
-import voice_service as vs  # For text-to-speech
-import audio_service as asr  # For audio transcription
 
-app = Flask(__name__, static_folder='static')
+load_dotenv()
 
-# Activer CORS pour toutes les routes
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+app = Flask(__name__, static_folder="static")
+app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
+
 CORS(app)
 
-# Initialisation de l'assistant vocal
 ai_assistant = AIVoiceAssistant()
 
 
@@ -22,11 +31,12 @@ def index():
     """
     return render_template('index.html')
 
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "ok",
+        "rag_context": ai_assistant.context_name,
+    })
 
 
 @app.route('/process_audio', methods=['POST']) #
@@ -36,7 +46,7 @@ def process_audio():
         return jsonify({"error": "Aucun fichier audio reçu."}), 400
 
     # Save temp file in uploads folder
-    temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_audio_{int(time.time())}.wav")
+    temp_path = os.path.join(app.config["UPLOAD_FOLDER"], f"temp_audio_{int(time.time())}.wav")
     audio_file.save(temp_path)
 
     # Transcribe audio
@@ -48,7 +58,7 @@ def process_audio():
 
     # Generate response audio in uploads folder
     audio_filename = f'response_{int(time.time())}.mp3'
-    audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
+    audio_path = os.path.join(app.config["UPLOAD_FOLDER"], audio_filename)
     vs.play_text_to_speech(response, output_path=audio_path)
 
     return jsonify({

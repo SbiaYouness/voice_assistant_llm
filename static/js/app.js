@@ -31,14 +31,19 @@ recordButton.addEventListener('click', async () => {
     
     if (isRecording) {
         // Stop recording
+        console.log('Stopping recording...');
         mediaRecorder.stop();
         isRecording = false;
         visualizer.classList.remove('active');
         recordButton.style.color = 'var(--text-color)';
     } else {
         // Start recording
+        console.log('Starting recording...');
         audioChunks = [];
-        mediaRecorder.start();
+        
+        // Request data every 1 second to ensure we get something
+        mediaRecorder.start(1000);
+        
         isRecording = true;
         visualizer.classList.add('active');
         recordButton.style.color = '#ff4444';
@@ -176,27 +181,91 @@ function addMessage(text, sender, save = true, audioFile = null) {
 
 async function initializeRecording() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
+        
+        // Set up audio visualization if needed
+        setupAudioVisualization(stream);
+        
+        // Options for better audio quality
+        const options = { 
+            mimeType: 'audio/webm;codecs=opus',
+            audioBitsPerSecond: 128000
+        };
+        
+        // Try with specified options first, fallback to default if not supported
+        try {
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch (e) {
+            console.warn('Requested codec not supported, using default codec', e);
+            mediaRecorder = new MediaRecorder(stream);
+        }
         
         mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) audioChunks.push(event.data);
+            if (event.data && event.data.size > 0) {
+                audioChunks.push(event.data);
+                console.log(`Audio chunk added: ${event.data.size} bytes`);
+            }
         };
         
         mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            console.log(`Recording stopped. Total chunks: ${audioChunks.length}`);
+            if (audioChunks.length === 0 || (audioChunks.length === 1 && audioChunks[0].size < 100)) {
+                console.error('No audio data captured or insufficient data');
+                alert('No audio was captured. Please try again and speak into your microphone.');
+                return;
+            }
+            
+            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            console.log(`Audio blob created: ${audioBlob.size} bytes`);
             await processAudio(audioBlob);
         };
+        
+        // Add data collection at regular intervals for longer recordings
+        mediaRecorder.addEventListener('start', () => {
+            console.log('Recording started');
+        });
+        
     } catch (err) {
-        console.error('Mic error:', err);
-        alert('مشكل في الميكروفون');
+        console.error('Mic initialization error:', err);
+        alert('مشكل في الميكروفون: ' + err.message);
+    }
+}
+
+// Add this function to visualize audio (helps debug if audio is being captured)
+function setupAudioVisualization(stream) {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(stream);
+        microphone.connect(analyser);
+        
+        // You could implement visualization here if needed
+        console.log('Audio visualization setup successful');
+    } catch (e) {
+        console.warn('Audio visualization could not be set up:', e);
     }
 }
 
 async function processAudio(audioBlob) {
+    if (!audioBlob || audioBlob.size === 0) {
+        console.error('Empty audio blob');
+        alert('No audio data was captured. Please try again.');
+        loading.style.display = 'none';
+        return;
+    }
+    
     loading.style.display = 'block';
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
+    
+    // Log the size of what we're sending
+    console.log(`Sending audio data: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
 
     try {
         const response = await fetch('/process_audio', { method: 'POST', body: formData });
