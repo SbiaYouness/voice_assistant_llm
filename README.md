@@ -1,87 +1,102 @@
 # Darija Voice RAG — Multi-Step AI Automation Pipeline
 
-**End-to-end voice automation in Moroccan Darija:** speech in → retrieval → local LLM → speech out — grounded on a swappable knowledge base, exposed as a REST API.
+End-to-end voice automation in Moroccan Darija: speak in, get a grounded answer back. Speech recognition → document retrieval → local LLM → voice response, exposed as a REST API and built to be domain-swappable.
 
-Built and shipped by **[Youness Sbia](https://github.com/SbiaYouness)** · AI & Computer Science, ENSAM Casablanca
+Built by **[Youness Sbia](https://github.com/SbiaYouness)** · AI & Computer Science, ENSAM Casablanca
 
-> Forked from [ayaansh-roy/voice_assistant_llm](https://github.com/ayaansh-roy/voice_assistant_llm) and rebuilt into a modular, domain-swappable automation stack — not a classroom script.
+> Forked from [ayaansh-roy/voice_assistant_llm](https://github.com/ayaansh-roy/voice_assistant_llm) and rebuilt into a modular, production-style automation stack.
 
 ---
 
-## Watch the demos
+## Demos
 
-Two production-style use cases. Same pipeline, different knowledge base + system prompt.
+Two use cases. Same pipeline, different knowledge base and system prompt.
 
 ### Restaurant voice ordering — *Abtaal Al-Sham* (أبطال الشام)
 
-Structured menu RAG · step-by-step order flow · Darija in/out
+Structured menu RAG, step-by-step order flow, Darija in and out.
 
-[Download MP4](https://github.com/SbiaYouness/voice_assistant_llm/raw/main/demos/restaurant-ordering.mp4)
+https://github.com/user-attachments/assets/b8279436-9ba3-4b65-bf04-947bd64bfea8
 
-<video src="demos/restaurant-ordering.mp4" width="720" controls></video>
+
 
 | | |
-| --- | --- |
-| **Context** | `restaurant` |
-| **Knowledge base** | `rag/restaurant_file.txt` |
-| **What it shows** | Voice-triggered ordering agent that stays inside menu data and guides the user one question at a time |
+|---|---|
+| Context | `restaurant` |
+| Knowledge base | `rag/restaurant_file.txt` |
+| What it shows | Voice-triggered ordering agent that stays inside menu data and walks the user through the order one question at a time |
 
 ---
 
 ### Family law Q&A — *Mudawana* (مدونة الأسرة)
 
-Legal-info RAG · custody, alimony, inheritance · Darija answers
+Legal-info RAG, custody, alimony, inheritance, answered in Darija.
 
-[Download MP4](https://github.com/SbiaYouness/voice_assistant_llm/raw/main/demos/mudawana-family-law.mp4)
+https://github.com/user-attachments/assets/4e68bdf2-10e4-4efb-a27f-3baa61ebe174
 
-<video src="demos/mudawana-family-law.mp4" width="720" controls></video>
 
 | | |
-| --- | --- |
-| **Context** | `mudawana` |
-| **Knowledge base** | `rag/mudawana.txt` |
-| **What it shows** | Same automation backbone repurposed for a completely different domain — swap config, ship a new agent |
+|---|---|
+| Context | `mudawana` |
+| Knowledge base | `rag/mudawana.txt` |
+| What it shows | Same pipeline repurposed for a completely different domain — swap one env variable, ship a new agent |
 
-> **Run the Mudawana demo:** set `RAG_CONTEXT=mudawana` in `.env` and restart the server.
+To run the Mudawana demo: set `RAG_CONTEXT=mudawana` in `.env` and restart.
 
 ---
 
-## Why this maps to AI automation
-
-This is a **multi-service orchestration** problem — the same pattern n8n, Make, or custom backends use to chain AI steps:
+## How it works
 
 ```
-Trigger (voice / HTTP)
+Trigger (voice / HTTP POST)
     → STT          faster-whisper
     → Retrieve     Qdrant + LlamaIndex
-    → Generate     Ollama (darijaLITE, local)
+    → Generate     Ollama (darijaLITE, runs locally)
     → Speak        ElevenLabs TTS
     → Respond      JSON + audio URL
 ```
 
-| Automation skill | How this project demonstrates it |
-| --- | --- |
-| **Multi-step pipelines** | 4 chained services with clear inputs/outputs at each stage |
-| **API-first design** | Flask REST endpoints — ready to wire into n8n HTTP nodes |
-| **Swappable workflows** | Change `RAG_CONTEXT` env var → new agent, new vector collection, new prompt |
-| **Local + cloud hybrid** | Ollama runs offline; ElevenLabs handles high-quality TTS via API |
-| **Structured grounding** | RAG prevents the LLM from freelancing outside the knowledge base |
-| **Modular services** | `audio_service` · `voice_service` · `AIVoiceAssistant` — each step is isolated and replaceable |
-
-Each `/process_audio` call is one full automation run: **audio file in → `{ transcription, response, audio_file }` out.**
+Each `/process_audio` call is one complete automation run: audio file in → `{ transcription, response, audio_file }` out.
 
 ---
 
-## What I shipped on top of the fork
+## Why this maps to AI automation work
 
-| Base repo | My changes |
-| --- | --- |
-| CLI mic loop | **Web app** — browser recording, chat UI, RTL Darija interface |
-| Single hardcoded RAG setup | **Two domain contexts** + env-driven switching |
-| Monolithic script | **Separated STT / RAG / TTS services** + REST API |
-| Fixed paths | **Portable config** via `.env` and relative paths |
-| gTTS playback | **ElevenLabs** (`Hamid`) for natural Darija voice output |
-| No docs / no deps file | **`README`**, `requirements.txt`, `.env.example`, demo videos |
+| Skill | How it's demonstrated here |
+|---|---|
+| Multi-step pipelines | 4 chained services with clear inputs and outputs at each stage |
+| API-first design | Flask REST endpoints ready to wire into any n8n HTTP node |
+| Swappable workflows | Change `RAG_CONTEXT` → new agent, new vector collection, new prompt |
+| Local + cloud hybrid | Ollama runs offline; ElevenLabs handles voice output via API |
+| Structured grounding | RAG keeps the LLM inside the knowledge base |
+| Modular services | `audio_service`, `voice_service`, `AIVoiceAssistant` are each isolated and replaceable |
+
+---
+
+## What I built on top of the fork
+
+| Original | What I changed |
+|---|---|
+| CLI mic loop | Web app with browser recording, chat UI, RTL Darija interface |
+| Single hardcoded RAG setup | Two domain contexts with env-driven switching |
+| Monolithic script | Separated STT / RAG / TTS services + REST API |
+| Fixed paths | Portable config via `.env` |
+| gTTS | ElevenLabs (`Hamid`) for natural Darija voice output |
+| No docs | README, `requirements.txt`, `.env.example`, demo videos |
+
+---
+
+## Stack
+
+| Layer | Tool |
+|---|---|
+| Orchestration | Python, Flask, Flask-CORS |
+| Speech to text | faster-whisper (`medium`) |
+| Vector store | Qdrant |
+| RAG | LlamaIndex |
+| LLM | Ollama, `darijaLITE` |
+| Text to speech | ElevenLabs, `Hamid`, `eleven_multilingual_v2` |
+| Frontend | HTML / CSS / JS, chat history, audio visualizer |
 
 ---
 
@@ -92,14 +107,14 @@ git clone https://github.com/SbiaYouness/voice_assistant_llm.git
 cd voice_assistant_llm
 
 python -m venv venv
-venv\Scripts\activate          # Windows
+venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS / Linux
 
 pip install -r requirements.txt
 cp .env.example .env         # add your ELEVENLABS_API_KEY
 ```
 
-**Start dependencies:**
+Start dependencies:
 
 ```bash
 # Terminal 1 — vector DB
@@ -110,48 +125,25 @@ ollama pull darijaLITE
 ollama serve
 ```
 
-**Run the app:**
+Run the app:
 
 ```bash
 python app.py
 # → http://127.0.0.1:5000
 ```
 
-Switch agent context without touching code:
-
-```env
-RAG_CONTEXT=restaurant   # default — menu ordering
-RAG_CONTEXT=mudawana     # family law Q&A
-```
-
 ---
 
-## n8n / automation integration
-
-Hook any orchestrator to these endpoints:
+## API endpoints
 
 | Method | Route | Body | Returns |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | `GET` | `/health` | — | `{ status, rag_context }` |
 | `POST` | `/process_text` | `{ "text": "..." }` | `{ "response": "..." }` |
-| `POST` | `/process_audio` | `multipart/form-data` · field `audio` | `{ transcription, response, audio_file }` |
+| `POST` | `/process_audio` | `multipart/form-data`, field `audio` | `{ transcription, response, audio_file }` |
 | `GET` | `/audio/<filename>` | — | MP3 stream |
 
-**Example n8n flow:** Webhook trigger → HTTP Request (`/process_text`) → IF node → Slack/email/TTS node.
-
----
-
-## Tech stack
-
-| Layer | Tool |
-| --- | --- |
-| Orchestration | Python · Flask · Flask-CORS |
-| STT | faster-whisper (`medium`) |
-| Vector store | Qdrant |
-| RAG | LlamaIndex |
-| LLM | Ollama · `darijaLITE` |
-| TTS | ElevenLabs · `Hamid` · `eleven_multilingual_v2` |
-| Frontend | HTML / CSS / JS · chat history · audio visualizer |
+Example n8n flow: Webhook trigger → HTTP Request (`/process_text`) → IF node → downstream action.
 
 ---
 
@@ -160,36 +152,34 @@ Hook any orchestrator to these endpoints:
 ```
 voice_assistant_llm/
 ├── demos/
-│   ├── restaurant-ordering.mp4    ← demo video
-│   └── mudawana-family-law.mp4    ← demo video
-├── app.py                         ← Flask API + routes
-├── audio_service.py               ← STT (Whisper)
-├── voice_service.py               ← TTS (ElevenLabs)
+│   ├── restaurant-ordering.mp4
+│   └── mudawana-family-law.mp4
+├── app.py                      Flask API + routes
+├── audio_service.py            STT via Whisper
+├── voice_service.py            TTS via ElevenLabs
 ├── rag/
-│   ├── AIVoiceAssistant.py        ← RAG engine + context config
+│   ├── AIVoiceAssistant.py     RAG engine + context config
 │   ├── restaurant_file.txt
 │   └── mudawana.txt
-├── templates/ · static/            ← chat UI
+├── templates/ · static/        Chat UI
 ├── requirements.txt
 ├── .env.example
-└── uploads/                       ← runtime audio (gitignored)
+└── uploads/                    Runtime audio (gitignored)
 ```
 
 ---
 
 ## Notes
 
-- Legal answers from the Mudawana context are **informational only** — not professional legal advice.
-- Responses can still hallucinate; the UI includes a disclaimer.
+- Legal answers from the Mudawana context are informational only, not professional legal advice.
 - Requires a valid `ELEVENLABS_API_KEY` in `.env` for voice output.
 
 ---
 
 ## License
 
-MIT — upstream: [ayaansh-roy/voice_assistant_llm](https://github.com/ayaansh-roy/voice_assistant_llm).
+MIT — upstream: [ayaansh-roy/voice_assistant_llm](https://github.com/ayaansh-roy/voice_assistant_llm)
 
 ## Credits
 
-- [ayaansh-roy/voice_assistant_llm](https://github.com/ayaansh-roy/voice_assistant_llm) — original RAG + Ollama pipeline
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) · [LlamaIndex](https://www.llamaindex.ai/) · [Qdrant](https://qdrant.tech/) · [Ollama](https://ollama.com) · [ElevenLabs](https://elevenlabs.io/)
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) · [LlamaIndex](https://www.llamaindex.ai/) · [Qdrant](https://qdrant.tech/) · [Ollama](https://ollama.com) · [ElevenLabs](https://elevenlabs.io/)
